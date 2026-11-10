@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Cijfers van Rokus</title>
+<title>Cijfers van Rocus</title>
 <style>
 :root{--bg:#f6f7fb;--card:#fff;--tx:#1d2433;--mu:#6b7385;--bd:#dde1ea;--ac:#3b6cf6;--ok:#1b8a4b;--bad:#d23b3b;--warn:#b7791f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b2029;--tx:#e8ebf2;--mu:#9aa3b5;--bd:#2d3443;--ac:#6f93ff;--ok:#4cc585;--bad:#ff7a7a;--warn:#e8b45a;color-scheme:dark}}
@@ -39,8 +39,8 @@ th{color:var(--mu);font-size:.8rem;font-weight:500}
 </head>
 <body>
 <main>
-<h1>Cijfers van Rokus</h1>
-<p style="margin:-6px 0 12px;font-weight:600">Zet hem op Rokus. Hup Feyenoord! 🔴⚪⚫</p>
+<h1>Cijfers van Rocus</h1>
+<p style="margin:-6px 0 12px;font-weight:600">Zet hem op Rocus. Hup Feyenoord! 🔴⚪⚫</p>
 <div class="tabs" id="tabs"></div>
 <div id="view"></div>
 </main>
@@ -53,7 +53,7 @@ let confirmDel=false;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 if(!S.seeded){
   ['Grieks','Latijn','Frans','Duits','Nederlands','Economie','Geschiedenis','AK','Scheikunde','Natuurkunde','Wiskunde','Drama','Kunst'].forEach((n,i)=>{
-    if(!S.subjects.some(s=>String(s.name).trim().toLowerCase()===n.toLowerCase()))S.subjects.push({id:'s'+Date.now()+'_'+i,name:n,tests:[{n:'',g:'',w:''}]});
+    if(!S.subjects.some(s=>String(s.name).trim().toLowerCase()===n.toLowerCase()))S.subjects.push({id:'s'+Date.now()+'_'+i,name:n,tests:[{n:'',g:'',w:'1'}]});
   });
   S.seeded=true;save();
 }
@@ -63,26 +63,24 @@ const fmt=n=>n.toFixed(2).replace('.',',');
 const pct=n=>String(Math.round(n*10)/10).replace('.',',');
 const tgt=s=>{const v=num(s.target);return v!==null&&v>0&&v<=10?v:S.target};
 function calc(s){
-  let gw=0,w=0,tot=0;
-  s.tests.forEach(t=>{const g=num(t.g),wt=num(t.w);if(wt===null||wt<=0)return;tot+=wt;if(g!==null){gw+=g*wt;w+=wt}});
+  let gw=0,w=0,rem=0;
+  s.tests.forEach(t=>{const g=num(t.g),wt=num(t.w);if(wt===null||wt<=0)return;if(g!==null){gw+=g*wt;w+=wt}else rem+=wt});
   const avg=w>0?gw/w:null;
-  const rem=Math.max(0,100-w);
-  const open=rem>0.0001;
-  const need=open?(tgt(s)*100-gw)/rem:null;
-  return {avg,need,rem:open?rem:0,w,tot};
+  const need=rem>0?(tgt(s)*(w+rem)-gw)/rem:null;
+  return {avg,need,rem,w,tot:w+rem};
 }
 function needTxt(c){
-  if(c.rem<=0)return '<span class="mu">Alle 100% is binnen: dit is het eindgemiddelde.</span>';
+  if(c.rem<=0)return '<span class="mu">Geen toetsen die nog komen. Vul bij een toets die nog komt de weging in en laat het cijfer leeg.</span>';
   const n=c.need;
   if(n>10)return `<span class="bad">Niet meer haalbaar: je zou gemiddeld een ${fmt(n)} moeten halen.</span>`;
   if(n<=1)return '<span class="ok">Je staat al veilig: elk cijfer is genoeg.</span>';
-  return `Gemiddeld nog een <b class="${n>8?'warn':''}">${fmt(n)}</b> halen op de resterende toetsen (samen ${pct(c.rem)}% van het totaal).`;
+  return `Gemiddeld nog een <b class="${n>8?'warn':''}">${fmt(n)}</b> halen op de resterende toetsen (samen weging ${pct(c.rem)}).`;
 }
 function statHtml(s){
   const c=calc(s);
   const a=c.avg===null?'–':fmt(c.avg);
   const cls=c.avg===null?'':(c.avg>=tgt(s)?'ok':'bad');
-  return `<div><div class="mu">Gemiddelde</div><div class="big ${cls}">${a}</div></div><div>${c.avg===null?'<span class="mu">Vul een cijfer en weging (in %) in.</span>':needTxt(c)}</div><div class="mu ${c.tot>100.0001?'bad':''}">Ingevulde weging: ${pct(c.tot)}% van 100%${c.tot>100.0001?' (te veel)':''}</div>`;
+  return `<div><div class="mu">Gemiddelde</div><div class="big ${cls}">${a}</div></div><div>${c.avg===null&&c.rem===0?'<span class="mu">Vul een cijfer en weging in.</span>':needTxt(c)}</div>`;
 }
 function tabs(){
   $tabs.innerHTML=`<button class="tab ${S.active==='ov'?'on':''}" data-id="ov">Overzicht</button>`+
@@ -92,7 +90,7 @@ function tabs(){
 function render(){
   tabs();confirmDel=false;
   if(S.active==='ov'){
-    const rows=S.subjects.map(s=>{const c=calc(s);return `<tr><td>${esc(s.name||'Nieuw vak')}</td><td><input class="dg" data-id="${s.id}" inputmode="decimal" placeholder="${String(S.target).replace('.',',')}" value="${esc(s.target||'')}"></td><td class="${c.avg===null?'':(c.avg>=tgt(s)?'ok':'bad')}"><b>${c.avg===null?'–':fmt(c.avg)}</b></td><td>${c.avg!==null&&c.rem>0?(c.need>10?'niet haalbaar':c.need<=1?'veilig':fmt(c.need)):'–'}</td></tr>`}).join('');
+    const rows=S.subjects.map(s=>{const c=calc(s);return `<tr><td>${esc(s.name||'Nieuw vak')}</td><td><input class="dg" data-id="${s.id}" inputmode="decimal" placeholder="${String(S.target).replace('.',',')}" value="${esc(s.target||'')}"></td><td class="${c.avg===null?'':(c.avg>=tgt(s)?'ok':'bad')}"><b>${c.avg===null?'–':fmt(c.avg)}</b></td><td>${c.rem>0?(c.need>10?'niet haalbaar':c.need<=1?'veilig':fmt(c.need)):'–'}</td></tr>`}).join('');
     $view.innerHTML=`<div class="card">${S.subjects.length?`<div class="tw"><table><tr><th>Vak</th><th>Doel</th><th>Gemiddelde</th><th>Nog nodig</th></tr>${rows}</table></div>`:'<p class="mu">Nog geen vakken. Klik op “+ Vak” om te beginnen.</p>'}
     <div class="tg"><label for="tg" class="mu">Standaard doelcijfer (voor vakken zonder eigen doel)</label><input id="tg" inputmode="decimal" value="${String(S.target).replace('.',',')}"></div></div>`;
     $('#tg').oninput=e=>{const v=num(e.target.value);if(v!==null&&v>0&&v<=10){S.target=v;save()}};
@@ -103,14 +101,14 @@ function render(){
   const s=S.subjects.find(x=>x.id===S.active);
   if(!s){S.active='ov';return render()}
   $view.innerHTML=`<div class="card"><input class="name" id="nm" placeholder="Naam van het vak" value="${esc(s.name)}">
-  <div class="row h"><span>Toets</span><span>Cijfer</span><span>Weging %</span><span></span></div>
-  ${s.tests.map((t,i)=>`<div class="row"><input data-i="${i}" data-f="n" placeholder="Toets ${i+1}" value="${esc(t.n)}"><input data-i="${i}" data-f="g" inputmode="decimal" placeholder="nog niet" value="${esc(t.g)}"><input data-i="${i}" data-f="w" inputmode="decimal" placeholder="%" value="${esc(t.w)}"><button class="b x" data-del="${i}" aria-label="Verwijder toets">✕</button></div>`).join('')}
+  <div class="row h"><span>Toets</span><span>Cijfer</span><span>Weging</span><span></span></div>
+  ${s.tests.map((t,i)=>`<div class="row"><input data-i="${i}" data-f="n" placeholder="Toets ${i+1}" value="${esc(t.n)}"><input data-i="${i}" data-f="g" inputmode="decimal" placeholder="nog niet" value="${esc(t.g)}"><input data-i="${i}" data-f="w" inputmode="decimal" placeholder="1" value="${esc(t.w)}"><button class="b x" data-del="${i}" aria-label="Verwijder toets">✕</button></div>`).join('')}
   <button class="b p" id="add">+ Toets</button>
   <div class="stats" id="stats">${statHtml(s)}</div>
-  <p class="mu">De weging is in procenten: alle toetsen samen horen op 100% uit te komen. Toetsen die nog komen laat je zonder cijfer staan; de site rekent met wat er van de 100% nog over is. Doelcijfer: ${String(tgt(s)).replace('.',',')} (aanpassen bij Overzicht).</p>
+  <p class="mu">De weging is in delen (bijvoorbeeld 1, 2 of 3). Een toets die nog komt vul je al wel in met de weging, maar je laat het cijfer leeg; de site rekent dan uit wat er nog nodig is. Doelcijfer: ${String(tgt(s)).replace('.',',')} (aanpassen bij Overzicht).</p>
   <button class="b" id="rm">Vak verwijderen</button></div>`;
   $('#nm').oninput=e=>{s.name=e.target.value;save();tabs()};
-  $('#add').onclick=()=>{s.tests.push({n:'',g:'',w:''});save();render()};
+  $('#add').onclick=()=>{s.tests.push({n:'',g:'',w:'1'});save();render()};
   $('#rm').onclick=e=>{if(!confirmDel){confirmDel=true;e.target.textContent='Zeker weten? Klik nogmaals';return}S.subjects=S.subjects.filter(x=>x!==s);S.active='ov';save();render()};
   $view.querySelectorAll('input[data-i]').forEach(el=>el.oninput=()=>{s.tests[+el.dataset.i][el.dataset.f]=el.value;save();$('#stats').innerHTML=statHtml(s)});
   $view.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{s.tests.splice(+b.dataset.del,1);save();render()});
@@ -118,7 +116,7 @@ function render(){
 const $=q=>document.querySelector(q);
 const $tabs=$('#tabs'),$view=$('#view');
 $tabs.onclick=e=>{const id=e.target.dataset.id;if(!id)return;
-  if(id==='new'){const s={id:'s'+Date.now(),name:'',tests:[{n:'',g:'',w:''}]};S.subjects.push(s);S.active=s.id}else S.active=id;
+  if(id==='new'){const s={id:'s'+Date.now(),name:'',tests:[{n:'',g:'',w:'1'}]};S.subjects.push(s);S.active=s.id}else S.active=id;
   save();render();if(id==='new')$('#nm').focus()};
 render();
 </script>
