@@ -34,6 +34,7 @@ th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd)}
 th{color:var(--mu);font-size:.8rem;font-weight:500}
 .tg{display:flex;align-items:center;gap:8px;margin-top:12px}
 .tg input{width:70px}
+.dg{width:64px}
 </style>
 </head>
 <body>
@@ -54,13 +55,14 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const num=v=>{if(v===null||v===undefined)return null;const t=String(v).trim().replace(',','.');if(t==='')return null;const n=Number(t);return isFinite(n)?n:null};
 const fmt=n=>n.toFixed(2).replace('.',',');
 const pct=n=>String(Math.round(n*10)/10).replace('.',',');
+const tgt=s=>{const v=num(s.target);return v!==null&&v>0&&v<=10?v:S.target};
 function calc(s){
   let gw=0,w=0,tot=0;
   s.tests.forEach(t=>{const g=num(t.g),wt=num(t.w);if(wt===null||wt<=0)return;tot+=wt;if(g!==null){gw+=g*wt;w+=wt}});
   const avg=w>0?gw/w:null;
   const rem=Math.max(0,100-w);
   const open=rem>0.0001;
-  const need=open?(S.target*100-gw)/rem:null;
+  const need=open?(tgt(s)*100-gw)/rem:null;
   return {avg,need,rem:open?rem:0,w,tot};
 }
 function needTxt(c){
@@ -73,7 +75,7 @@ function needTxt(c){
 function statHtml(s){
   const c=calc(s);
   const a=c.avg===null?'–':fmt(c.avg);
-  const cls=c.avg===null?'':(c.avg>=S.target?'ok':'bad');
+  const cls=c.avg===null?'':(c.avg>=tgt(s)?'ok':'bad');
   return `<div><div class="mu">Gemiddelde</div><div class="big ${cls}">${a}</div></div><div>${c.avg===null?'<span class="mu">Vul een cijfer en weging (in %) in.</span>':needTxt(c)}</div><div class="mu ${c.tot>100.0001?'bad':''}">Ingevulde weging: ${pct(c.tot)}% van 100%${c.tot>100.0001?' (te veel)':''}</div>`;
 }
 function tabs(){
@@ -84,11 +86,12 @@ function tabs(){
 function render(){
   tabs();confirmDel=false;
   if(S.active==='ov'){
-    const rows=S.subjects.map(s=>{const c=calc(s);return `<tr><td>${esc(s.name||'Nieuw vak')}</td><td class="${c.avg===null?'':(c.avg>=S.target?'ok':'bad')}"><b>${c.avg===null?'–':fmt(c.avg)}</b></td><td>${c.avg!==null&&c.rem>0?(c.need>10?'niet haalbaar':c.need<=1?'veilig':fmt(c.need)):'–'}</td></tr>`}).join('');
-    $view.innerHTML=`<div class="card">${S.subjects.length?`<div class="tw"><table><tr><th>Vak</th><th>Gemiddelde</th><th>Nog nodig</th></tr>${rows}</table></div>`:'<p class="mu">Nog geen vakken. Klik op “+ Vak” om te beginnen.</p>'}
-    <div class="tg"><label for="tg" class="mu">Doelcijfer</label><input id="tg" inputmode="decimal" value="${String(S.target).replace('.',',')}"></div></div>`;
+    const rows=S.subjects.map(s=>{const c=calc(s);return `<tr><td>${esc(s.name||'Nieuw vak')}</td><td><input class="dg" data-id="${s.id}" inputmode="decimal" placeholder="${String(S.target).replace('.',',')}" value="${esc(s.target||'')}"></td><td class="${c.avg===null?'':(c.avg>=tgt(s)?'ok':'bad')}"><b>${c.avg===null?'–':fmt(c.avg)}</b></td><td>${c.avg!==null&&c.rem>0?(c.need>10?'niet haalbaar':c.need<=1?'veilig':fmt(c.need)):'–'}</td></tr>`}).join('');
+    $view.innerHTML=`<div class="card">${S.subjects.length?`<div class="tw"><table><tr><th>Vak</th><th>Doel</th><th>Gemiddelde</th><th>Nog nodig</th></tr>${rows}</table></div>`:'<p class="mu">Nog geen vakken. Klik op “+ Vak” om te beginnen.</p>'}
+    <div class="tg"><label for="tg" class="mu">Standaard doelcijfer (voor vakken zonder eigen doel)</label><input id="tg" inputmode="decimal" value="${String(S.target).replace('.',',')}"></div></div>`;
     $('#tg').oninput=e=>{const v=num(e.target.value);if(v!==null&&v>0&&v<=10){S.target=v;save()}};
     $('#tg').onchange=render;
+    $view.querySelectorAll('.dg').forEach(el=>{el.oninput=()=>{const s=S.subjects.find(x=>x.id===el.dataset.id);if(s){s.target=el.value;save()}};el.onchange=render});
     return;
   }
   const s=S.subjects.find(x=>x.id===S.active);
@@ -98,7 +101,7 @@ function render(){
   ${s.tests.map((t,i)=>`<div class="row"><input data-i="${i}" data-f="n" placeholder="Toets ${i+1}" value="${esc(t.n)}"><input data-i="${i}" data-f="g" inputmode="decimal" placeholder="nog niet" value="${esc(t.g)}"><input data-i="${i}" data-f="w" inputmode="decimal" placeholder="%" value="${esc(t.w)}"><button class="b x" data-del="${i}" aria-label="Verwijder toets">✕</button></div>`).join('')}
   <button class="b p" id="add">+ Toets</button>
   <div class="stats" id="stats">${statHtml(s)}</div>
-  <p class="mu">De weging is in procenten: alle toetsen samen horen op 100% uit te komen. Toetsen die nog komen laat je zonder cijfer staan; de site rekent met wat er van de 100% nog over is. Doelcijfer: ${String(S.target).replace('.',',')} (aanpassen bij Overzicht).</p>
+  <p class="mu">De weging is in procenten: alle toetsen samen horen op 100% uit te komen. Toetsen die nog komen laat je zonder cijfer staan; de site rekent met wat er van de 100% nog over is. Doelcijfer: ${String(tgt(s)).replace('.',',')} (aanpassen bij Overzicht).</p>
   <button class="b" id="rm">Vak verwijderen</button></div>`;
   $('#nm').oninput=e=>{s.name=e.target.value;save();tabs()};
   $('#add').onclick=()=>{s.tests.push({n:'',g:'',w:''});save();render()};
